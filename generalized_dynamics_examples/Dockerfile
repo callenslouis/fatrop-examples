@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     swig \
     libeigen3-dev \
     ffmpeg \
+    python3-tk \
     && rm -rf /var/lib/apt/lists/*
 
 # Build and install BLASFEO

@@ -19,7 +19,6 @@ class OptiGenerator():
         self.update_initial_guess()
 
     def load_casadi_funcs(self):
-        print(f"{self.casadi_func_folder}/f_objk.casadi")
         self.f_objk_orig = Function.load(f"{self.casadi_func_folder}/f_objk.casadi")
         self.f_g0_orig = Function.load(f"{self.casadi_func_folder}/f_g0.casadi")
         self.f_gk_orig = Function.load(f"{self.casadi_func_folder}/f_gk.casadi")
@@ -76,11 +75,11 @@ class OptiGenerator():
         uk = vertcat(uk, self.qddot_coll[(self.n_coll-1)*self.n_coords:self.n_coll*self.n_coords], self.zk) # keep the last q_coll and qdot_coll as zk variables to enforce periodicity
         self.uk = uk
         
-        self.f_objk = Function('f_objk', [self.xk, self.uk], [self.f_objk_orig(self.xk, self.uk)])
-        self.f_g0 = Function('f_g0', [self.xk, self.uk], [vertcat(self.f_g0_orig(self.xk, self.uk), periodicity_constraint)])
-        self.f_gk = Function('f_gk', [self.xk, self.uk], [vertcat(self.f_gk_orig(self.xk, self.uk), periodicity_constraint)])
+        self.f_objk = Function('f_objk', [self.xk, self.uk], [self.f_objk_orig(self.xk, self.uk_orig)])
+        self.f_g0 = Function('f_g0', [self.xk, self.uk], [vertcat(self.f_g0_orig(self.xk, self.uk_orig), periodicity_constraint)])
+        self.f_gk = Function('f_gk', [self.xk, self.uk], [vertcat(self.f_gk_orig(self.xk, self.uk_orig), periodicity_constraint)])
         self.f_gK = Function('f_gK', [self.xk], [self.f_gK_orig(self.xk)])
-        self.f_gk_ineq = Function('f_gk_ineq', [self.xk, self.uk], [self.f_gk_ineq_orig(self.xk, self.uk)])
+        self.f_gk_ineq = Function('f_gk_ineq', [self.xk, self.uk], [self.f_gk_ineq_orig(self.xk, self.uk_orig)])
         self.f_gap = Function('f_gap', [self.xk, self.uk], [self.zk if self.introduce_periodicity_vars else vertcat(self.zk, self.xk[self.n_coords*2:])])
         self.f_g0_unique = Function('f_g0_unique', [self.xk, self.uk], [self.f_g0_orig_unique(self.xk, self.uk_orig)])
         
@@ -157,10 +156,11 @@ class OptiGenerator():
             obj += self.f_objk(xx[k], uu[k])
             
         opti.minimize(obj)
+        # opti.minimize(sumsqr(hcat(uu)))
         
         opts_casadi = {'expand': True, 'detect_simple_bounds': True, 
                'structure_detection': 'auto'}
-        opts_fatrop = {'tol': 1e-5, 'mu_init': 0.1, 'max_iter': 300}
+        opts_fatrop = {'tol': 1e-5, 'mu_init': 0.1, 'max_iter': 300, 'problem_type': 'ocp_type'}
         
         return opti, xx, uu, opts_casadi, opts_fatrop
     

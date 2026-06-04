@@ -172,6 +172,7 @@ for k in range(N):
     obj += f_objk(xx[k], uu[k])
     
 opti.minimize(obj)
+# opti.minimize(sumsqr(hcat(uu)))
 
 # Note: Fatrop does not support CasADi callbacks, so we will capture stdout during solving
 convergence_stats = None

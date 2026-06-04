@@ -6,20 +6,15 @@ import re
 from pathlib import Path
 
 FOLDER = 'stored_solutions'
-# FOLDER = 'unittest/implicit/walking_gait/stored_solutions'
 
 # obtain all stats files for one ocp type
 def get_stats_for_ocp_type(file_appendix):
     stats_list = []
-    files = [f for f in os.listdir(FOLDER) if f.startswith('solution_gait_shortcut_reformulated_' + file_appendix)]
+    files = [f for f in os.listdir(FOLDER) if f.startswith('solution_walking_gait_' + file_appendix)]
     for file in files:
         with open(f'{FOLDER}/{file}', 'rb') as f:
             data = pkl.load(f)
             stats_list.append(data['stats'])
-    print(stats_list[0].keys())
-    print()
-    print(stats_list[0]['fatrop'].keys())
-    print()
     return stats_list
 
 # get averages and std for each timing metric across all runs for each ocp type
@@ -162,7 +157,34 @@ def print_comparison(timings1, timings2, label1='OCP Type', label2='Accelerated 
         else:
             print(f"{key:<20} | {'N/A':20} | {'N/A':21} | {'N/A':20}")
     print()
+    
+def print_minimal_table():
+    ocp_stats, accelerated_ocp_stats, ocp_avg, accelerated_ocp_avg = get_all_stats()
+    ocp_filtered = filter(ocp_avg)['fatrop']
+    accelerated_ocp_filtered = filter(accelerated_ocp_avg)['fatrop']
 
-ocp_stats, accelerated_ocp_stats, ocp_avg, accelerated_ocp_avg = get_all_stats()
-ocp_filtered, accelerated_ocp_filtered = filter(ocp_avg), filter(accelerated_ocp_avg)
-print_comparison(ocp_filtered['fatrop'], accelerated_ocp_filtered['fatrop'], label1='OCP Type', label2='Accelerated OCP Type')
+    sd_time_normal = ocp_filtered.get('compute_sd_time', {}).get('mean', None)
+    total_time_normal = ocp_filtered.get('time_total', {}).get('mean', None)
+    sd_time_accelerated = accelerated_ocp_filtered.get('compute_sd_time', {}).get('mean', None)
+    total_time_accelerated = accelerated_ocp_filtered.get('time_total', {}).get('mean', None)
+
+    def format_val(value):
+        return f"{value:.4f}" if value is not None else 'N/A'
+
+    def percent_improvement(base, current):
+        if base is None or current is None or base == 0:
+            return 'N/A'
+        return f"{((current - base) / base * 100):.2f}%"
+
+    print()
+    print(f"{'KPI':<40} {'OCP Type':<20} {'Accelerated OCP Type':<20} {'Improvement':<15}")
+    print('-' * 95)
+    print(f"{'Search Direction Time (s)':<40} {format_val(sd_time_normal):<20} {format_val(sd_time_accelerated):<20} {percent_improvement(sd_time_normal, sd_time_accelerated):<15}")
+    print(f"{'Total Time (s)':<40} {format_val(total_time_normal):<20} {format_val(total_time_accelerated):<20} {percent_improvement(total_time_normal, total_time_accelerated):<15}")
+
+    return
+
+if __name__ == '__main__':
+    ocp_stats, accelerated_ocp_stats, ocp_avg, accelerated_ocp_avg = get_all_stats()
+    ocp_filtered, accelerated_ocp_filtered = filter(ocp_avg), filter(accelerated_ocp_avg)
+    print_comparison(ocp_filtered['fatrop'], accelerated_ocp_filtered['fatrop'], label1='OCP Type', label2='Accelerated OCP Type')
