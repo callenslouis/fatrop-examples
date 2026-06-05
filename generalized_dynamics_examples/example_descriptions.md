@@ -2,6 +2,8 @@
 
 This folder contains three illustrative optimal control examples. Each example shows a different type of dynamic system and trajectory optimization problem.
 
+The <code>Dockerfile</code> builds a version of FATROP that allows to exploit structure in the equality constraint Jacobian arising from rewriting general dynamics and a <code>CasADi</code> installation to specify the OCPs
+
 ## hello_world
 
 This is a small, pedagogical multi-agent optimal control problem in the plane.
