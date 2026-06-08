@@ -43,12 +43,12 @@ if config['caching']['store'] and not config['caching']['load']:
 if result_expl is not None:
     PrintAveragedTimes(result_expl, "Explicit")
 if result_reform is not None:
-    PrintAveragedTimes(result_reform, "Reformulated")
+    PrintAveragedTimes(result_reform, "Normal")
 if result_accel is not None:
     PrintAveragedTimes(result_accel, "Accelerated")
 # TrajectorySolver.PrintAveragedTimes(result_impl, "Implicit")
 
-PrintDifferences(result_reform, result_accel, "Reformulated", "Accelerated")
+PrintDifferences(result_reform, result_accel, "Normal", "Accelerated")
 
 ### Visualize
 if config['visualize']:
@@ -56,7 +56,7 @@ if config['visualize']:
     if result_expl is not None:
         visualizer.visualize_result(T, result_expl, appendix="explicit")
     if result_reform is not None:
-        visualizer.visualize_result(T, result_reform, appendix="reformulated")
+        visualizer.visualize_result(T, result_reform, appendix="normal")
     if result_accel is not None:
         visualizer.visualize_result(T, result_accel, appendix="accelerated")
     # visualizer.visualize_result(T, result_impl, appendix="implicit")

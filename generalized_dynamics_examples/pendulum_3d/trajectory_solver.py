@@ -57,6 +57,7 @@ def SolveMultipleRuns(solver, q0, v0, T, N, nb_runs):
     return sol
 
 def PrintAveragedTimes(sol, method_name):
+    print()
     print(f"Averaged computation times for {method_name}:")
     print(f"  Total time:                          {np.mean(sol['t_total']):.3f}")
     print(f"  Total time per iteration:            {np.mean(sol['t_total'])/np.mean(sol['nb_iterations']):.3f}")
@@ -73,6 +74,7 @@ def PrintAveragedTimes(sol, method_name):
     print(f"  Percentage of fatrop time spent in search direction: {np.mean(sol['t_search_direction'])/(np.mean([sol['t_total']]) - func_eval_time)*100:.2f}%")
     
 def PrintDifferences(sol1, sol2, name1, name2):
+    print()
     print(f"Relative difference between {name1} and {name2}:")
     print(f"   Search direction time:               {(np.mean(sol2['t_search_direction']) - np.mean(sol1['t_search_direction']))/np.mean(sol1['t_search_direction'])*100:.4f}%")
     print(f"   Search direction time per iteration: {(np.mean(sol2['t_search_direction'])/np.mean(sol2['nb_iterations']) - np.mean(sol1['t_search_direction'])/np.mean(sol1['nb_iterations']))/(np.mean(sol1['t_search_direction'])/np.mean(sol1['nb_iterations']))*100:.2f}%")
