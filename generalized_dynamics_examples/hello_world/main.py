@@ -87,7 +87,7 @@ def solve(use_acceleration, nb_agents=2, visualize=False):
 if __name__ == "__main__":
     
     nb_agents = 10
-    nb_runs = 3
+    nb_runs = 4
     visualize_last = True
     
     sols_normal = []
@@ -96,12 +96,14 @@ if __name__ == "__main__":
         print(f"Run {i+1}/{nb_runs} - Solving without acceleration")
         start_time = time.time()
         sol_normal = solve(use_acceleration=False, nb_agents=nb_agents)
-        sols_normal.append(sol_normal)
+        if i > 0: # don't save first result
+            sols_normal.append(sol_normal)
 
         print(f"Run {i+1}/{nb_runs} - Solving with acceleration")
         start_time = time.time()
-        sol_accelerated = solve(use_acceleration=True, nb_agents=nb_agents, visualize=(visualize_last and i == nb_runs - 1))
-        sols_accelerated.append(sol_accelerated)
+        sol_accelerated = solve(use_acceleration=True, nb_agents=nb_agents, visualize=(visualize_last and i == nb_runs-1))
+        if i > 0:  # don't save first result
+            sols_accelerated.append(sol_accelerated)
     
 
     print_timings(sols_normal, sols_accelerated)
