@@ -2,13 +2,15 @@
 
 This folder contains three illustrative optimal control examples. Each example shows a different type of dynamic system and trajectory optimization problem.
 
+The <code>Dockerfile</code> builds a version of FATROP that allows to exploit structure in the equality constraint Jacobian arising from rewriting general dynamics and a <code>CasADi</code> installation to specify the OCPs
+
 ## hello_world
 
 This is a small, pedagogical multi-agent optimal control problem in the plane.
 
 - System: `nb_agents` point-mass agents with planar position and velocity states.
 - Control: planar accelerations for each agent.
-- Dynamics: a simple backward-Euler discretization of single-integrator motion, enforced using gap-closing constraints.
+- Dynamics: a simple backward-Euler discretization of double-integrator motion, enforced using gap-closing constraints.
 - Constraint: each agent is constrained to remain on a circle of radius 1 around the origin at every time step.
 - Objective: minimize quadratic control effort over the horizon.
 - Task: move the agents from an initial circular formation to a rotated terminal formation while keeping the formation constraint and reaching zero terminal velocity.
