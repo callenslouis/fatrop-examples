@@ -4,6 +4,9 @@ This folder contains three illustrative optimal control examples. Each example s
 
 The <code>Dockerfile</code> builds a version of FATROP that allows to exploit structure in the equality constraint Jacobian arising from rewriting general dynamics and a <code>CasADi</code> installation to specify the OCPs
 
+## usage
+Each subfolder contains a main.py that runs a problem a few times (to average timing results) both with the normal FATROP version and the Accelerated version. The script <code>run_new_docker.sh</code> installs requirements and ports this repo as a volume.
+
 ## hello_world
 
 This is a small, pedagogical multi-agent optimal control problem in the plane.
