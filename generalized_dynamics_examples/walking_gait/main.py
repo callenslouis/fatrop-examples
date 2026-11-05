@@ -1,5 +1,5 @@
 from walking_gait import solve
-from post_process_test_gait import print_minimal_table
+from post_process_test_gait import print_minimal_table, print_comparison
 import yaml
 
 if __name__ == '__main__':
@@ -27,4 +27,3 @@ if __name__ == '__main__':
         
     # print post_processing table
     print_minimal_table()
-    

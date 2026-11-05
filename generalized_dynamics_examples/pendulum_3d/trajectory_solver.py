@@ -17,6 +17,17 @@ def SolveImplicit(solver, q0, v0, T, N, nb_runs=1):
     solver.implicit = True
     solver.reformulate = False
     solver.accelerated = False
+    solver.restructure = False
+    
+    return SolveMultipleRuns(solver, q0, v0, T, N, nb_runs)
+
+def SolveImplicitRestructured(solver, q0, v0, T, N, nb_runs=1):
+    # implicit Riccati recursion with the states reordered as (q, p, v), so that only the positions
+    # appear implicitly in the dynamics: J = [-I 0 dt*I; 0 -I 0; 0 0 -I]
+    solver.implicit = True
+    solver.reformulate = False
+    solver.accelerated = False
+    solver.restructure = True
     
     return SolveMultipleRuns(solver, q0, v0, T, N, nb_runs)
 
@@ -88,6 +99,7 @@ class TrajectorySolver():
         self.implicit = implicit
         self.reformulate = False
         self.accelerated = False
+        self.restructure = False
 
         # ocp params
         self.force_bounds = config['scenario']['force_bounds']
@@ -334,6 +346,18 @@ class TrajectorySolver():
         nu = eval_objk.sparsity_in(0).size1()
         nx = eval_objk.sparsity_in(1).size1()
 
+        # Reorder the states from (v, p, q) to (q, p, v) for the implicit Riccati recursion: the dynamics of the
+        # velocities (v_{k+1} = v_k + vdot*dt) and of p are explicit, only the positions
+        # (q_{k+1} = q_k + v_{k+1}*dt) are implicit, so the implicit states and equations come first.
+        # perm maps the new state order to the original one: x_new = x_old[perm], x_old = x_new[inv_perm].
+        restructure = self.implicit and not self.reformulate and self.restructure
+        n_q = 3*self.model.nb_pendulums
+        n_v = 3*self.model.nb_pendulums
+        n_p = nx - n_q - n_v
+        perm = list(range(n_v + n_p, nx)) + list(range(n_v, n_v + n_p)) + list(range(n_v)) if restructure else list(range(nx))
+        inv_perm = [int(i) for i in np.argsort(perm)]
+        to_old = lambda x: x[inv_perm]
+
         opti = Opti()
         # xx = opti.variable(nx, N+1)
         # uu = opti.variable(nu, N)
@@ -349,38 +373,50 @@ class TrajectorySolver():
         obj = 0
         for k in range(N):
             if self.implicit and not self.reformulate:
-                opti.subject_to(impl_dyn(uu[:,k], xx[:,k], xx[:,k+1]) == 0)
+                # the dynamics equations are ordered like the states
+                opti.subject_to(impl_dyn(uu[:,k], to_old(xx[:,k]), to_old(xx[:,k+1]))[perm] == 0)
             else:
                 opti.subject_to(xx[:,k+1] == expl_dyn(uu[:,k], xx[:,k]))
 
 
             if  k == 0 and eval_g0.sparsity_out(0).size1() > 0:
-                opti.subject_to(eval_g0(uu[:, 0], xx[:, 0]) == 0)
+                opti.subject_to(eval_g0(uu[:, 0], to_old(xx[:, 0])) == 0)
             if k > 0 and eval_gk.sparsity_out(0).size1() > 0:
-                opti.subject_to(eval_gk(uu[:,k], xx[:,k]) == 0)
+                opti.subject_to(eval_gk(uu[:,k], to_old(xx[:,k])) == 0)
             if eval_gk_ineq.sparsity_out(0).size1() > 0:
-                opti.subject_to(lb()['lb'] <= (eval_gk_ineq(uu[:,k], xx[:,k]) <= ub()['ub']))
+                opti.subject_to(lb()['lb'] <= (eval_gk_ineq(uu[:,k], to_old(xx[:,k])) <= ub()['ub']))
 
-            obj += eval_objk(uu[:,k], xx[:,k])
+            obj += eval_objk(uu[:,k], to_old(xx[:,k]))
 
         if eval_gK.sparsity_out(0).size1() > 0:
-            opti.subject_to(eval_gK(xx[:,N]) == 0)
+            opti.subject_to(eval_gK(to_old(xx[:,N])) == 0)
         if eval_gK_ineq.sparsity_out(0).size1() > 0:
-            opti.subject_to(lbK()['lbK'] <= (eval_gK_ineq(xx[:,N]) <= ubK()['ubK']))
-        obj += eval_objK(xx[:,N])
+            opti.subject_to(lbK()['lbK'] <= (eval_gK_ineq(to_old(xx[:,N])) <= ubK()['ubK']))
+        obj += eval_objK(to_old(xx[:,N]))
 
         opti.minimize(obj)
 
         uu_init = []; xx_init = []
         for k in range(N):
-            opti.set_initial(xx[:,k], x_init(k))
+            opti.set_initial(xx[:,k], x_init(k)[perm])
             opti.set_initial(uu[:,k], u_init(k))
             uu_init.append(u_init(k))
             xx_init.append(x_init(k))
-        opti.set_initial(xx[:,N], x_init(N))
+        opti.set_initial(xx[:,N], x_init(N)[perm])
 
         if self.implicit and not self.reformulate:
-            opti.solver('ipopt', {'error_on_fail': True}, {'max_iter':1, 'tol':1e-4})
+            # implicit Riccati recursion: the dynamics are written as impl_dyn(u_k, x_k, x_{k+1}) == 0, the stage
+            # sizes tell the structure detection which variables are states
+            fatrop_opts = {
+                'max_iter': 400,
+                'tol': 1e-4,
+                'problem_type': 'implicit_ocp_type',
+            }
+            if restructure:
+                # J = [D C; 0 -I] with D = -I for the positions
+                fatrop_opts['linsol_nb_of_implicit_states'] = n_q
+            opti.solver('fatrop', {'error_on_fail': True, 'structure_detection': 'manual', 'expand': True,
+                                   'nx': [nx]*(N+1), 'nu': [nu]*N + [0]}, fatrop_opts)
         else:
             problem_type = 'ocp_type' if not self.accelerated else 'accelerated_ocp_type'
             fatrop_opts = {
@@ -422,6 +458,8 @@ class TrajectorySolver():
 
         # xx_sol = self.sol.value(xx)
         # uu_sol = self.sol.value(uu)
+        # back to the original order of the states (v, p, q)
+        xx_sol = np.array(xx_sol)[inv_perm, :]
         result = {
             'success': True,
             'nb_iter': self.get_nb_iters(),

@@ -1,0 +1,4 @@
+# The code is mounted at runtime with -v, so the build context only needs the CasADi patch
+# that the Dockerfile copies.
+*
+!patches/casadi.patch

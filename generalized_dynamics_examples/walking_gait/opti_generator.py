@@ -91,6 +91,14 @@ class OptiGenerator():
                                     self.qddot_coll)
         
         self.f_gk_reformulated = self.reformulator.get_f_gk_reformulated(self.f_gk)
+        
+        # visualize
+        # self.reformulator.show_gk_jacobian_structure_for_debugging(self.f_gk_reformulated)
+        # print(self.get_nb_dynamics_constraints())
+        # print(self.get_nb_zk_vars())
+        # print(self.uk_orig.shape[0])
+        # exit()
+        
         self.f_g0_reformulated = Function('f_g0_reformulated', [self.xk, self.uk], 
                                      [vertcat(
                                          self.f_g0_unique(self.xk, self.uk), 

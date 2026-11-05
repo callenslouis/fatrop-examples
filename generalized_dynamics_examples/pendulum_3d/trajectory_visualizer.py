@@ -37,7 +37,10 @@ class TrajectoryVisualizer():
         self.visualize_z_vars()
         self.visualize_energy()
         self.animate_trajectory()
-        
+        # close the figures: open animation figures keep redrawing frames with an interactive backend (TkAgg),
+        # which makes destroying them at exit hang
+        self.close()
+
     def visualize_result(self, T, result, appendix=""):
         if not result['success']:
             print(f"Result ({appendix}) was not successful, skipping visualization.")

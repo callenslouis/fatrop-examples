@@ -18,7 +18,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Build and install BLASFEO
-RUN git clone https://github.com/giaf/blasfeo.git
+# Pinned: newer BLASFEO changed the blasfeo_drowpe/dcolpe signatures, which breaks fatrop
+RUN git clone https://github.com/giaf/blasfeo.git && \
+    git -C blasfeo checkout 60493284741b3e4e5b0bf25155221d4b5f0b2232
 RUN mkdir blasfeo/build && cd blasfeo/build && \
     cmake .. \
     -DTARGET=X64_AUTOMATIC \
@@ -33,8 +35,12 @@ RUN mkdir blasfeo/build && cd blasfeo/build && \
 #     -DCMAKE_INSTALL_PREFIX=/usr/local \
 #     -DCMAKE_BUILD_TYPE=Release && \
 #     make -j$(nproc) && make install
-RUN git clone https://github.com/callenslouis/fatrop.git
-RUN cd fatrop &&git checkout fatropv1-implicit
+# The branch head is downloaded first, so the clone below is not taken from the build cache when the
+# branch has new commits
+ADD https://api.github.com/repos/callenslouis/fatrop/git/refs/heads/fatropv1-implicit /tmp/fatrop_ref.json
+RUN git clone https://github.com/callenslouis/fatrop.git && \
+    git -C fatrop checkout fatropv1-implicit && \
+    git -C fatrop log -1 --format="fatrop at %h: %s"
 RUN mkdir fatrop/build && cd fatrop/build && \
     cmake .. \
     -DBUILD_TESTS=OFF \
@@ -50,6 +56,10 @@ WORKDIR /casadi
 # (Optional) checkout the nightly-fatropv1 commit/tag
 # Replace with the actual tag or commit hash if needed
 RUN git checkout nightly-fatropv1 || true
+
+# Support for implicit dynamics (Fatrop problem_type implicit_ocp_type)
+COPY patches/casadi.patch /tmp/casadi.patch
+RUN git apply /tmp/casadi.patch
 
 # Create build directory
 RUN mkdir build
