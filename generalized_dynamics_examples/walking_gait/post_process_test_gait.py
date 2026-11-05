@@ -42,16 +42,17 @@ def average_stats(stats_list):
     
     return avg_stats
 
-# get all stats for both ocp types
-# multiple stats exist for each type
+PROBLEM_TYPES = ['ocp_type', 'accelerated_ocp_type', 'implicit_ocp_type']
+LABELS = {'ocp_type': 'OCP Type', 'accelerated_ocp_type': 'Accelerated OCP Type', 'implicit_ocp_type': 'Implicit OCP Type'}
+
+# averaged stats for every ocp type with stored solutions (multiple runs exist for each type)
 def get_all_stats():
-    ocp_type_stats = get_stats_for_ocp_type('ocp_type')
-    accelerated_ocp_type_stats = get_stats_for_ocp_type('accelerated_ocp_type')
-    
-    ocp_average_stats = average_stats(ocp_type_stats)
-    accelerated_ocp_type_stats = average_stats(accelerated_ocp_type_stats)
-    
-    return ocp_type_stats, accelerated_ocp_type_stats, ocp_average_stats, accelerated_ocp_type_stats
+    average_stats_per_type = {}
+    for problem_type in PROBLEM_TYPES:
+        stats = get_stats_for_ocp_type(problem_type)
+        if stats:
+            average_stats_per_type[problem_type] = average_stats(stats)
+    return average_stats_per_type
 
 def filter(avg_stats):
     filtered_stats = {'fatrop': {}}
@@ -158,33 +159,50 @@ def print_comparison(timings1, timings2, label1='OCP Type', label2='Accelerated 
             print(f"{key:<20} | {'N/A':20} | {'N/A':21} | {'N/A':20}")
     print()
     
+# one column per ocp type, relative differences with respect to the normal ocp type
 def print_minimal_table():
-    ocp_stats, accelerated_ocp_stats, ocp_avg, accelerated_ocp_avg = get_all_stats()
-    ocp_filtered = filter(ocp_avg)['fatrop']
-    accelerated_ocp_filtered = filter(accelerated_ocp_avg)['fatrop']
+    filtered = {problem_type: filter(avg)['fatrop'] for problem_type, avg in get_all_stats().items()}
+    if not filtered:
+        print("No stored solutions found.")
+        return
+    types = [t for t in PROBLEM_TYPES if t in filtered]
 
-    sd_time_normal = ocp_filtered.get('compute_sd_time', {}).get('mean', None)
-    total_time_normal = ocp_filtered.get('time_total', {}).get('mean', None)
-    sd_time_accelerated = accelerated_ocp_filtered.get('compute_sd_time', {}).get('mean', None)
-    total_time_accelerated = accelerated_ocp_filtered.get('time_total', {}).get('mean', None)
+    def mean(problem_type, key):
+        return filtered[problem_type].get(key, {}).get('mean', None)
+
+    def per_iteration(problem_type, key):
+        value, iterations = mean(problem_type, key), mean(problem_type, 'iterations_count')
+        return value / iterations if value is not None and iterations else None
 
     def format_val(value):
         return f"{value:.4f}" if value is not None else 'N/A'
 
-    def percent_improvement(base, current):
+    def percent_difference(base, current):
         if base is None or current is None or base == 0:
             return 'N/A'
-        return f"{((current - base) / base * 100):.2f}%"
+        return f"{((current - base) / base * 100):+.2f}%"
+
+    kpis = [('Iterations', lambda t: mean(t, 'iterations_count')),
+            ('Search Direction Time (s)', lambda t: mean(t, 'compute_sd_time')),
+            ('Search Direction Time / Iteration (s)', lambda t: per_iteration(t, 'compute_sd_time')),
+            ('Total Time (s)', lambda t: mean(t, 'time_total'))]
 
     print()
-    print(f"{'KPI':<40} {'OCP Type':<20} {'Accelerated OCP Type':<20} {'Improvement':<15}")
-    print('-' * 95)
-    print(f"{'Search Direction Time (s)':<40} {format_val(sd_time_normal):<20} {format_val(sd_time_accelerated):<20} {percent_improvement(sd_time_normal, sd_time_accelerated):<15}")
-    print(f"{'Total Time (s)':<40} {format_val(total_time_normal):<20} {format_val(total_time_accelerated):<20} {percent_improvement(total_time_normal, total_time_accelerated):<15}")
+    header = f"{'KPI':<40}" + ''.join(f"{LABELS[t]:<22}" for t in types)
+    header += ''.join(f"{t.split('_')[0].capitalize() + ' vs OCP Type':<26}" for t in types[1:] if 'ocp_type' in types)
+    print(header)
+    print('-' * len(header))
+    for name, kpi in kpis:
+        row = f"{name:<40}" + ''.join(f"{format_val(kpi(t)):<22}" for t in types)
+        if 'ocp_type' in types:
+            row += ''.join(f"{percent_difference(kpi('ocp_type'), kpi(t)):<26}" for t in types[1:])
+        print(row)
 
     return
 
 if __name__ == '__main__':
-    ocp_stats, accelerated_ocp_stats, ocp_avg, accelerated_ocp_avg = get_all_stats()
-    ocp_filtered, accelerated_ocp_filtered = filter(ocp_avg), filter(accelerated_ocp_avg)
-    print_comparison(ocp_filtered['fatrop'], accelerated_ocp_filtered['fatrop'], label1='OCP Type', label2='Accelerated OCP Type')
+    avg_stats = get_all_stats()
+    for problem_type in ['accelerated_ocp_type', 'implicit_ocp_type']:
+        if 'ocp_type' in avg_stats and problem_type in avg_stats:
+            print_comparison(filter(avg_stats['ocp_type'])['fatrop'], filter(avg_stats[problem_type])['fatrop'],
+                             label1=LABELS['ocp_type'], label2=LABELS[problem_type])

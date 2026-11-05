@@ -3,7 +3,8 @@ n_coll: 3
 introduce_periodicity_vars: False
 
 # fatrop options
-problem_type: 'ocp_type'
+problem_type: 'ocp_type' # 'ocp_type', 'accelerated_ocp_type' or 'implicit_ocp_type'
+scale_constraints: True # row scaling of the equality constraints (same for all problem types)
 
 # solution management
 save_opti_f: False
